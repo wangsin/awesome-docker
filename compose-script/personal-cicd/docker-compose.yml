@@ -1,0 +1,80 @@
+version: '3.5'
+
+networks:
+  cicd:
+
+volumes:
+  jenkins_home:
+
+services:
+
+  proxy_nginx:
+    image: wangsin365/nginx-w:latest
+    restart: always
+    networks:
+      - cicd
+    volumes:
+      - ./nginx-conf/conf.d:/etc/nginx/conf.d
+      - ./nginx-conf/logs:/var/log/nginx
+      - ./nginx-conf/nginx.conf:/etc/nginx/nginx.conf
+    ports:
+      - "80:80"
+      - "443:443"
+      - "10022:10022"
+
+  gitea_server:
+    image: gitea/gitea:latest
+    environment:
+      - USER_UID=1000
+      - USER_GID=1000
+      - DB_TYPE=postgres
+      - DB_HOST=gitea_db:3308
+      - DB_NAME=gitea
+      - DB_USER=gitea
+      - DB_PASSWD=gitea
+    restart: always
+    networks:
+      - cicd
+    volumes:
+      - ./gitea/data:/data
+    # ports:
+    #   - "3000:3000"
+    #   - "22:22"
+    depends_on:
+      - gitea_db
+
+  gitea_db:
+    image: postgres:14.2-bullseye
+    restart: always
+    networks:
+      - cicd
+    environment:
+      - POSTGRES_PASSWORD=gitea
+      - POSTGRES_USER=gitea
+      - POSTGRES_DB=gitea
+      - PGDATA=/var/lib/postgresql/data/pgdata
+    volumes:
+      - ./postgres/data:/var/lib/postgresql/data/pgdata
+    # ports:
+    #   - 5432:5432
+
+  db_adminer:
+    image: adminer
+    restart: always
+    networks:
+      - cicd
+    # ports:
+    #   - 8996:8080
+
+  jenkins_server:
+    image: wangsin365/wenkins:latest
+    restart: always
+    networks:
+      - cicd
+    volumes:
+      - type: volume
+        source: jenkins_home
+        target: /var/jenkins_home
+    # ports:
+    #   - "8080:8080"
+    #   - "50000:50000"
